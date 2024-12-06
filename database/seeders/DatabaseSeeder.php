@@ -7,6 +7,7 @@ use Database\Seeders\AccountTypeSeeder;
 use Database\Seeders\AccountSeeder;
 use Database\Seeders\TransferSeeder;
 use Database\Seeders\UserSeeder;
+use Database\Seeders\LoanSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -27,7 +28,7 @@ class DatabaseSeeder extends Seeder
             AccountTypeSeeder::class,
             UserSeeder::class,
             AccountSeeder::class,
-            TransferSeeder::class,
+            // TransferSeeder::class,
         ]);
     }
 }

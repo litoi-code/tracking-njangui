@@ -13,16 +13,17 @@ class Transfer extends Model
     protected $fillable = [
         'from_account_id',
         'to_account_id',
-        'user_id',
         'amount',
         'description',
         'status',
-        'executed_at'
+        'executed_at',
+        'parent_id',
+        'user_id'
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
-        'executed_at' => 'datetime'
+        'executed_at' => 'datetime',
+        'amount' => 'decimal:0'
     ];
 
     public function fromAccount(): BelongsTo

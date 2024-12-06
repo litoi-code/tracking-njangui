@@ -6,21 +6,51 @@
                 
                 {{-- Menu Admin --}}
                 @if(Auth::user()->is_role == 1)
-                <li class="nav-item"> <a href="./generate/theme.html" class="nav-link active"> <i class="nav-icon bi bi-palette"></i>
-                        <p>Tableau de Bord </p>
-                    </a> </li>
-                <li class="nav-item"> <a href="" class="nav-link"> <i class="nav-icon bi bi-table"></i>
+                <li class="nav-item"> 
+                    <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"> 
+                        <i class="nav-icon bi bi-speedometer2"></i>
+                        <p>Tableau de Bord</p>
+                    </a> 
+                </li>
+                <li class="nav-item"> 
+                    <a href="{{ route('accounts.index') }}" class="nav-link {{ request()->routeIs('accounts.*') ? 'active' : '' }}"> 
+                        <i class="nav-icon bi bi-wallet2"></i>
+                        <p>Accounts</p>
+                    </a> 
+                </li>
+                <li class="nav-item"> 
+                    <a href="{{ route('transfers.index') }}" class="nav-link {{ request()->routeIs('transfers.*') ? 'active' : '' }}"> 
+                        <i class="nav-icon bi bi-arrow-left-right"></i>
+                        <p>Transfers</p>
+                    </a> 
+                </li>
+                <li class="nav-item"> 
+                    <a href="{{ route('loans.index') }}" class="nav-link {{ request()->routeIs('loans.*') ? 'active' : '' }}"> 
+                        <i class="nav-icon bi bi-cash-coin"></i>
+                        <p>Loans</p>
+                    </a> 
+                </li>
+                <li class="nav-item"> 
+                    <a href="" class="nav-link"> 
+                        <i class="nav-icon bi bi-people"></i>
                         <p>Membres</p>
-                    </a> </li>
+                    </a> 
+                </li>
                 
                 {{-- Menu Utilisateur --}}
                 @elseif (Auth::user()->is_role == 2)
-                <li class="nav-item"> <a href="./generate/theme.html" class="nav-link active"> <i class="nav-icon bi bi-palette"></i>
-                    <p>Tableau de Bord</p>
-                </a> </li>
-            <li class="nav-item"> <a href="./generate/theme.html" class="nav-link "> <i class="nav-icon bi bi-table"></i>
-                    <p>Paramètres</p>
-                </a> </li>
+                <li class="nav-item"> 
+                    <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"> 
+                        <i class="nav-icon bi bi-palette"></i>
+                        <p>Tableau de Bord</p>
+                    </a> 
+                </li>
+                <li class="nav-item"> 
+                    <a href="./generate/theme.html" class="nav-link "> 
+                        <i class="nav-icon bi bi-table"></i>
+                        <p>Paramètres</p>
+                    </a> 
+                </li>
                 @endif
             </ul> <!--end::Sidebar Menu-->
         </nav>

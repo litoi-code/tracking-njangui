@@ -18,18 +18,18 @@ class AccountTypeSeeder extends Seeder
                 'name' => 'Checking Account',
                 'description' => 'Regular checking account for daily transactions'
             ],
-            [
-                'name' => 'Investment Account',
-                'description' => 'Account for investment purposes'
-            ],
-            [
-                'name' => 'Business Account',
-                'description' => 'Account for business transactions'
-            ],
-            [
-                'name' => 'Joint Account',
-                'description' => 'Shared account between multiple users'
-            ]
+            // [
+            //     'name' => 'Investment Account',
+            //     'description' => 'Account for investment purposes'
+            // ],
+            // [
+            //     'name' => 'Business Account',
+            //     'description' => 'Account for business transactions'
+            // ],
+            // [
+            //     'name' => 'Joint Account',
+            //     'description' => 'Shared account between multiple users'
+            // ]
         ];
 
         foreach ($types as $type) {

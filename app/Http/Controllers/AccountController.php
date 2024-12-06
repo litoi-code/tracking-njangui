@@ -4,19 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Models\Account;
 use App\Models\AccountType;
+use App\Models\Transfer;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class AccountController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $accounts = Account::with(['accountType', 'user'])
+        $query = Account::with(['accountType', 'user']);
+
+        // Filter by account type if specified
+        if ($request->has('type') && $request->type != 'all') {
+            $query->whereHas('accountType', function($q) use ($request) {
+                $q->where('id', $request->type);
+            });
+        }
+
+        $accounts = $query->orderBy('balance', 'desc')->paginate(12);
+        
+        // Get account types with counts
+        $accountTypes = AccountType::withCount('accounts')
             ->orderBy('name')
             ->get();
 
-        return view('accounts.index', compact('accounts'));
+        // Append type parameter to pagination links if it exists
+        if ($request->has('type')) {
+            $accounts->appends(['type' => $request->type]);
+        }
+
+        return view('accounts.index', compact('accounts', 'accountTypes'));
     }
 
     public function create()
@@ -25,7 +43,10 @@ class AccountController extends Controller
         $users = User::orderBy('name')->get();
         $currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CNY'];
 
-        return view('accounts.create', compact('accountTypes', 'users', 'currencies'));
+        // Get the checking account type ID
+        $defaultAccountTypeId = AccountType::where('name', 'like', '%Checking%')->first()?->id;
+
+        return view('accounts.create', compact('accountTypes', 'users', 'currencies', 'defaultAccountTypeId'));
     }
 
     public function store(Request $request)
@@ -33,50 +54,84 @@ class AccountController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'account_type_id' => 'required|exists:account_types,id',
-            'balance' => 'required|numeric|min:0',
-            'description' => 'nullable|string|max:1000'
+            'balance' => 'required|integer|min:0',
         ]);
 
-        // Add XAF currency and get first user (temporary)
-        $validated['currency'] = 'XAF';
-        $validated['user_id'] = User::first()->id;
+        $account = Account::create([
+            'name' => $validated['name'],
+            'account_type_id' => $validated['account_type_id'],
+            'balance' => $validated['balance'],
+        ]);
 
-        $account = Account::create($validated);
-
-        return redirect()
-            ->route('accounts.show', $account)
-            ->with('success', 'Account created successfully.');
+        return redirect()->route('accounts.show', ['account' => $account->id])
+            ->with('success', 'Account created successfully with initial balance of ' . number_format($account->balance, 0) . ' XAF');
     }
 
     public function show(Account $account)
     {
-        $account->load(['accountType', 'user']);
-        
-        $transferHistory = $account->getTransferHistory(3);
-        $monthlyVolume = $account->getMonthlyTransferVolume();
+        // Calculate monthly volume for current month
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfMonth();
 
-        // Get monthly balance trend
-        $balanceTrend = DB::table('transfers')
-            ->select(
-                DB::raw('DATE_FORMAT(executed_at, "%Y-%m") as month'),
-                DB::raw('SUM(CASE WHEN from_account_id = ' . $account->id . ' THEN -amount ELSE 0 END) + 
-                        SUM(CASE WHEN to_account_id = ' . $account->id . ' THEN amount ELSE 0 END) as net_change')
-            )
-            ->where(function ($query) use ($account) {
-                $query->where('from_account_id', $account->id)
-                    ->orWhere('to_account_id', $account->id);
-            })
-            ->where('executed_at', '>=', now()->subMonths(6))
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get();
+        $monthlyVolume = [
+            'incoming' => Transfer::where('to_account_id', $account->id)
+                                ->whereBetween('executed_at', [$monthStart, $monthEnd])
+                                ->sum('amount'),
+            'outgoing' => Transfer::where('from_account_id', $account->id)
+                                ->whereBetween('executed_at', [$monthStart, $monthEnd])
+                                ->sum('amount'),
+            'incoming_count' => Transfer::where('to_account_id', $account->id)
+                                      ->whereBetween('executed_at', [$monthStart, $monthEnd])
+                                      ->count(),
+            'outgoing_count' => Transfer::where('from_account_id', $account->id)
+                                      ->whereBetween('executed_at', [$monthStart, $monthEnd])
+                                      ->count()
+        ];
 
-        return view('accounts.show', compact(
-            'account',
-            'transferHistory',
-            'monthlyVolume',
-            'balanceTrend'
-        ));
+        // Initial transfers load
+        $transfers = $this->transfers($account);
+
+        return view('accounts.show', compact('account', 'transfers', 'monthlyVolume'));
+    }
+
+    public function transfers(Account $account)
+    {
+        $query = Transfer::where(function($q) use ($account) {
+            $q->where('from_account_id', $account->id)
+              ->orWhere('to_account_id', $account->id);
+        });
+
+        // Account name search
+        if (request('search')) {
+            $search = request('search');
+            $query->where(function($q) use ($search) {
+                $q->whereHas('fromAccount', function($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                })->orWhereHas('toAccount', function($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%');
+                });
+            });
+        }
+
+        // Date range filter
+        if (request('start_date')) {
+            $query->whereDate('executed_at', '>=', request('start_date'));
+        }
+        if (request('end_date')) {
+            $query->whereDate('executed_at', '<=', request('end_date'));
+        }
+
+        $transfers = $query->orderBy('executed_at', 'desc')
+                          ->orderBy('amount', 'desc')
+                          ->with(['fromAccount', 'toAccount'])
+                          ->paginate(15)
+                          ->withQueryString();
+
+        if (request()->ajax()) {
+            return view('accounts._transfers_table', compact('account', 'transfers'))->render();
+        }
+
+        return $transfers;
     }
 
     public function edit(Account $account)
@@ -93,19 +148,13 @@ class AccountController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'account_type_id' => 'required|exists:account_types,id',
-            'balance' => 'required|numeric|min:0',
-            'description' => 'nullable|string|max:1000'
+            'balance' => 'required|integer|min:0',
         ]);
-
-        // Keep the existing user_id and currency
-        $validated['user_id'] = $account->user_id;
-        $validated['currency'] = 'XAF';
 
         $account->update($validated);
 
-        return redirect()
-            ->route('accounts.show', $account)
-            ->with('success', 'Account updated successfully.');
+        return redirect()->route('accounts.show', ['account' => $account->id])
+            ->with('success', 'Account updated successfully. New balance: ' . number_format($account->balance, 0) . ' XAF');
     }
 
     public function destroy(Account $account)

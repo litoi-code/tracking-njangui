@@ -1,7 +1,27 @@
 <nav class="app-header navbar navbar-expand bg-body"> <!--begin::Container-->
     <div class="container-fluid"> <!--begin::Start Navbar Links-->
-        <ul class="navbar-nav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
             <li class="nav-item"> <a class="nav-link" data-lte-toggle="sidebar" href="#" role="button"> <i class="bi bi-list"></i> </a> </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('accounts.*') ? 'active' : '' }}" href="{{ route('accounts.index') }}">
+                    <i class="bi bi-wallet2"></i> Accounts
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('transfers.*') ? 'active' : '' }}" href="{{ route('transfers.index') }}">
+                    <i class="bi bi-arrow-left-right"></i> Transfers
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('loans.*') ? 'active' : '' }}" href="{{ route('loans.index') }}">
+                    <i class="bi bi-cash-coin"></i> Loans
+                </a>
+            </li>
             <li class="nav-item d-none d-md-block"> <a href="#" class="nav-link">Home</a> </li>
             <li class="nav-item d-none d-md-block"> <a href="#" class="nav-link">Contact</a> </li>
         </ul> <!--end::Start Navbar Links--> <!--begin::End Navbar Links-->

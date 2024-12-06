@@ -11,13 +11,10 @@ return new class extends Migration
         Schema::create('accounts', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->foreignId('user_id')->constrained();
-            $table->foreignId('account_type_id')->constrained();
-            $table->decimal('balance', 12, 2)->default(0);
-            $table->string('currency', 3)->default('XAF');
-            $table->text('description')->nullable();
+            $table->decimal('balance', 12, 0)->default(0);
+            $table->foreignId('account_type_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

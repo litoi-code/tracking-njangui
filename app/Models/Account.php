@@ -21,7 +21,7 @@ class Account extends Model
     ];
 
     protected $casts = [
-        'balance' => 'decimal:2'
+        'balance' => 'decimal:0'
     ];
 
     public function accountType(): BelongsTo

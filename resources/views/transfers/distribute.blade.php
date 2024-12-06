@@ -2,214 +2,270 @@
 
 @section('content')
 <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Distribute Funds</h2>
-        <a href="{{ route('transfers.index') }}" class="btn btn-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Transfers
-        </a>
-    </div>
+    <div class="row justify-content-center">
+        <div class="col-md-12">
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
 
-    <div class="card">
-        <div class="card-body">
-            <form action="{{ route('transfers.distribute.store') }}" method="POST" id="distributeForm" onsubmit="return validateForm()">
-                @csrf
-
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="from_account_id" class="form-label">From Account</label>
-                            <input type="text" id="sourceSearch" class="form-control mb-2" placeholder="Search source account...">
-                            <select name="from_account_id" id="from_account_id" class="form-select @error('from_account_id') is-invalid @enderror" required>
-                                <option value="">Select Source Account</option>
-                                @foreach($sourceAccounts as $account)
-                                    <option value="{{ $account->id }}" data-balance="{{ $account->balance }}">
-                                        {{ $account->name }} ({{ number_format($account->balance, 2) }} XAF)
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('from_account_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                            <div id="from_account_balance" class="form-text"></div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="executed_at" class="form-label">Execution Date</label>
-                            <input type="datetime-local" name="executed_at" id="executed_at" 
-                                   class="form-control @error('executed_at') is-invalid @enderror" 
-                                   value="{{ old('executed_at', now()->format('Y-m-d\TH:i')) }}" required>
-                            @error('executed_at')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Distribution</h5>
+                        <div class="d-flex align-items-center gap-3">
+                            <span id="total_amount" class="badge bg-primary fs-6">Total: 0 XAF</span>
+                            <a href="{{ route('transfers.index') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Retour
+                            </a>
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Distributions</label>
-                    <div class="mb-2">
-                        <input type="text" id="destinationSearch" class="form-control" placeholder="Search destination accounts...">
-                    </div>
-                    <div id="distributionsContainer">
-                        <div class="distribution-row mb-3">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <select name="distributions[0][to_account_id]" class="form-select to-account" required>
-                                        <option value="">Select Destination Account</option>
-                                        @foreach($destinationAccounts as $account)
-                                            <option value="{{ $account->id }}">
-                                                {{ $account->name }} ({{ number_format($account->balance, 2) }} XAF)
-                                            </option>
+                <div class="card-body">
+                    @if($errors->any())
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <strong>Error!</strong>
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    @endif
+
+                    <form action="{{ route('transfers.distribute.store') }}" method="POST" id="distributeForm">
+                        @csrf
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="from_account_id" class="form-label">Source Account</label>
+                                    <select name="from_account_id" id="from_account_id" class="form-select @error('from_account_id') is-invalid @enderror" required>
+                                        <option value="">Select source account</option>
+                                        @foreach($groupedAccounts as $type => $accounts)
+                                            <optgroup label="{{ $type }}">
+                                                @foreach($accounts as $account)
+                                                    <option value="{{ $account->id }}" 
+                                                        {{ old('from_account_id') == $account->id ? 'selected' : '' }}
+                                                        data-balance="{{ $account->balance }}">
+                                                        {{ $account->name }} (Balance: {{ number_format($account->balance, 0) }} XAF)
+                                                    </option>
+                                                @endforeach
+                                            </optgroup>
                                         @endforeach
                                     </select>
+                                    @error('from_account_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
-                                <div class="col-md-4">
-                                    <input type="number" name="distributions[0][amount]" 
-                                           class="form-control amount-input" step="0.01" min="0.01" 
-                                           placeholder="Amount" required>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="executed_at" class="form-label">Execution Date</label>
+                                    <input type="date" class="form-control @error('executed_at') is-invalid @enderror" 
+                                           id="executed_at" name="executed_at" 
+                                           value="{{ old('executed_at', date('Y-m-d')) }}" required>
+                                    @error('executed_at')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
-                                <div class="col-md-2">
-                                    <button type="button" class="btn btn-danger remove-distribution" disabled>
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">Distribution Progress</label>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                        <span class="progress-text">0%</span>
+                                    </div>
+                                </div>
+                                <div class="mt-2 d-flex justify-content-between">
+                                    <small class="text-muted">Total Amount: <span class="total-amount fw-bold">0</span> XAF</small>
+                                    <small class="text-muted">Available: <span class="available-amount fw-bold">0</span> XAF</small>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <button type="button" id="addDistribution" class="btn btn-secondary">
-                        <i class="bi bi-plus-circle"></i> Add Distribution
-                    </button>
-                </div>
 
-                <div class="text-end">
-                    <div id="total_amount" class="mb-2 h5"></div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-send"></i> Create Distributions
-                    </button>
+                        <div class="distribution-rows">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="table-responsive">
+                                        <table class="table table-borderless">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 45%">Destination Account</th>
+                                                    <th style="width: 30%">Amount</th>
+                                                    <th style="width: 25%">Balance</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($savingsAccounts as $index => $account)
+                                                <tr class="distribution-row">
+                                                    <td>
+                                                        <input type="hidden" name="to_account_ids[]" value="{{ $account->id }}">
+                                                        <span class="form-control-plaintext">{{ $account->name }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="input-group">
+                                                            <input type="number" 
+                                                                class="form-control distribution-amount" 
+                                                                name="amounts[]" 
+                                                                step="any"
+                                                                value="0"
+                                                                placeholder="Enter amount (positive or negative)">
+                                                            <span class="input-group-text">XAF</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="form-control-plaintext">
+                                                            {{ number_format($account->balance, 2) }} XAF
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <a href="{{ route('transfers.index') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x-lg"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send"></i> Submit Distribution
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
-@endsection
+
+@push('styles')
+<style>
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 0.5rem;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,.1);
+    }
+    .progress-bar {
+        transition: width 0.3s ease;
+        position: relative;
+        border-radius: 0.5rem;
+    }
+    .progress-bar.under {
+        background-color: #0d6efd;
+    }
+    .progress-bar.exact {
+        background-color: #198754;
+    }
+    .progress-bar.over {
+        background-color: #dc3545;
+    }
+    .progress-text {
+        position: absolute;
+        width: 100%;
+        text-align: center;
+        font-weight: bold;
+        color: white;
+        text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+    }
+    .total-amount, .available-amount {
+        font-size: 1.1em;
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const distributionsContainer = document.getElementById('distributionsContainer');
-    const addDistributionButton = document.getElementById('addDistribution');
-    const sourceSearch = document.getElementById('sourceSearch');
-    const destinationSearch = document.getElementById('destinationSearch');
-    let distributionCount = 0;
+    const fromAccountSelect = document.querySelector('#from_account_id');
+    let sourceBalance = 0;
 
-    // Source account search
-    sourceSearch.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        const sourceSelect = document.getElementById('from_account_id');
-        const options = sourceSelect.querySelectorAll('option:not(:first-child)');
+    // Initialize Select2 for source account
+    $('#from_account_id').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Select source account',
+        allowClear: true
+    });
+
+    // Initialize Flatpickr date picker
+    flatpickr("#executed_at", {
+        dateFormat: "Y-m-d",
+        allowInput: true,
+        defaultDate: new Date()
+    });
+
+    // Format number to currency without decimals
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('fr-FR', {
+            maximumFractionDigits: 0,
+            minimumFractionDigits: 0
+        }).format(amount);
+    }
+
+    // Calculate total and update UI
+    function updateTotal() {
+        const amounts = [...document.querySelectorAll('.distribution-amount')].map(input => parseFloat(input.value) || 0);
+        const total = amounts.reduce((sum, amount) => sum + amount, 0);
+        const available = sourceBalance - total;
         
-        options.forEach(option => {
-            const text = option.textContent.toLowerCase();
-            if (text.includes(searchTerm)) {
-                option.style.display = '';
+        // Update total amount display
+        document.querySelector('.total-amount').textContent = formatCurrency(total);
+        document.querySelector('.available-amount').textContent = formatCurrency(Math.max(0, available));
+        document.querySelector('#total_amount').textContent = 'Total: ' + formatCurrency(total) + ' XAF';
+
+        // Update progress bar
+        if (sourceBalance > 0) {
+            const percentage = (total / sourceBalance) * 100;
+            const progressBar = document.querySelector('.progress-bar');
+            const progressText = progressBar.querySelector('.progress-text');
+            
+            // Update width and text
+            progressBar.style.width = Math.min(percentage, 100) + '%';
+            progressBar.setAttribute('aria-valuenow', Math.min(percentage, 100));
+            progressText.textContent = percentage.toFixed(1) + '%';
+            
+            // Update colors based on percentage
+            progressBar.classList.remove('under', 'exact', 'over');
+            if (percentage < 100) {
+                progressBar.classList.add('under');
+            } else if (percentage === 100) {
+                progressBar.classList.add('exact');
             } else {
-                option.style.display = 'none';
+                progressBar.classList.add('over');
             }
-        });
-    });
 
-    // Destination account search
-    destinationSearch.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        const accountSelects = document.querySelectorAll('.to-account');
-        
-        accountSelects.forEach(select => {
-            const options = select.querySelectorAll('option:not(:first-child)');
-            options.forEach(option => {
-                const text = option.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    option.style.display = '';
-                } else {
-                    option.style.display = 'none';
-                }
-            });
-        });
-    });
-
-    function createDistributionRow() {
-        distributionCount++;
-        const row = document.createElement('div');
-        row.className = 'distribution-row mb-3';
-        row.innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <select name="distributions[${distributionCount}][to_account_id]" class="form-select to-account" required>
-                        <option value="">Select Destination Account</option>
-                        @foreach($destinationAccounts as $account)
-                            <option value="{{ $account->id }}">
-                                {{ $account->name }} ({{ number_format($account->balance, 2) }} XAF)
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <input type="number" name="distributions[${distributionCount}][amount]" 
-                           class="form-control amount-input" step="0.01" min="0.01" 
-                           placeholder="Amount" required>
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-danger remove-distribution">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-
-        distributionsContainer.appendChild(row);
-
-        // Add event listener to the new remove button
-        row.querySelector('.remove-distribution').addEventListener('click', function() {
-            row.remove();
-            updateTotalAmount();
-            updateRemoveButtons();
-        });
-
-        // Add event listener to the new amount input
-        row.querySelector('.amount-input').addEventListener('input', updateTotalAmount);
-
-        updateRemoveButtons();
-        return row;
+            // Update available amount color
+            const availableElement = document.querySelector('.available-amount');
+            availableElement.classList.remove('text-danger', 'text-success');
+            if (available < 0) {
+                availableElement.classList.add('text-danger');
+            } else {
+                availableElement.classList.add('text-success');
+            }
+        }
     }
 
-    function updateRemoveButtons() {
-        const removeButtons = document.querySelectorAll('.remove-distribution');
-        const hasMultipleRows = removeButtons.length > 1;
-        
-        removeButtons.forEach(button => {
-            button.disabled = !hasMultipleRows;
-        });
-    }
-
-    function updateTotalAmount() {
-        let total = 0;
-        document.querySelectorAll('.amount-input').forEach(input => {
-            total += parseFloat(input.value) || 0;
-        });
-        document.getElementById('total_amount').textContent = `Total: ${total.toFixed(2)} XAF`;
-    }
-
-    // Event Listeners
-    addDistributionButton.addEventListener('click', function() {
-        const newRow = createDistributionRow();
-        newRow.querySelector('.amount-input').addEventListener('input', updateTotalAmount);
+    // Update source balance when changing source account
+    fromAccountSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        sourceBalance = selectedOption.value ? parseInt(selectedOption.dataset.balance) : 0;
+        updateTotal();
     });
 
-    // Initialize the first row's amount input listener
-    document.querySelector('.amount-input').addEventListener('input', updateTotalAmount);
-
-    // Update the remove buttons initially
-    updateRemoveButtons();
+    // Update total when changing any amount
+    document.querySelector('tbody').addEventListener('input', function(e) {
+        if (e.target.classList.contains('distribution-amount')) {
+            updateTotal();
+        }
+    });
 });
 </script>
 @endpush
+@endsection
